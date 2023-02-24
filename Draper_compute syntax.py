@@ -82,17 +82,18 @@ def outDraper_adder(eng, a,b,n):
     idx = 0  # ancilla idx
     pre = 0  # 이전 t-1일 때의 [1]의 상대적 위치.
 
-    for t in range(1, int(log2(n))):
-        for m in range(1, l(n, t)):
-            if t == 1:  # B에 저장되어있는 애들로만 연산 가능
-                toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancillae[idx])
-            else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
-                toffoli_gate(eng, ancillae[pre - 1 + 2 * m], ancillae[pre - 1 + 2 * m + 1], ancillae[idx])
-                # toffoli_gate(eng, ancillae[idx-l(n,t-1)+2*m], ancillae[idx-l(n,t-1)+2*m+1], ancillae[idx]))
-                # 이건 절대적 위치 계산한 식임. 이것도 제대로 동작하긴 함.
-            if m == 1:  # 여기 위치가 맞음. t==1일 때 이 if문을 통과하면서 저장할 것임. (t-1) for문의 m=1을 저장하는게 목표.
-                pre = idx
-            idx += 1
+    with Compute(eng):
+        for t in range(1, int(log2(n))):
+            for m in range(1, l(n, t)):
+                if t == 1:  # B에 저장되어있는 애들로만 연산 가능
+                    toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancillae[idx])
+                else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
+                    toffoli_gate(eng, ancillae[pre - 1 + 2 * m], ancillae[pre - 1 + 2 * m + 1], ancillae[idx])
+                    # toffoli_gate(eng, ancillae[idx-l(n,t-1)+2*m], ancillae[idx-l(n,t-1)+2*m+1], ancillae[idx]))
+                    # 이건 절대적 위치 계산한 식임. 이것도 제대로 동작하긴 함.
+                if m == 1:  # 여기 위치가 맞음. t==1일 때 이 if문을 통과하면서 저장할 것임. (t-1) for문의 m=1을 저장하는게 목표.
+                    pre = idx
+                idx += 1
 
     # G-round
     pre = 0
@@ -119,6 +120,10 @@ def outDraper_adder(eng, a,b,n):
                              ancillae[len(ancillae)-1-l(n,t)-1+2*m], z[int(pow(2, t) * m + pow(2, t-1))])
 
     # P-inverse round
+    Uncompute(eng)
+
+    '''
+    # P-inverse round
     idx = 0  # ancilla idx
     pre = 0  # 이전 t-1일 때의 [1]의 상대적 위치.
 
@@ -133,6 +138,7 @@ def outDraper_adder(eng, a,b,n):
             if m == 1:  # 여기 위치가 맞음. t==1일 때 이 if문을 통과하면서 저장할 것임. (t-1) for문의 m=1을 저장하는게 목표.
                 pre = idx
             idx += 1
+    '''
 
     # Last round
     for i in range(n):
@@ -157,16 +163,18 @@ def inDraper_adder(eng, a,b,n):
     # P-round
     idx = 0  # ancilla idx
     pre = 0  # 이전 t-1일 때의 [1]의 상대적 위치.
-    for t in range(1, int(log2(n))):
-        for m in range(1, l(n, t)):
-            if t == 1:  # B에 저장되어있는 애들로만 연산 가능
-                toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancilla2[idx])
-            else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
-                toffoli_gate(eng, ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1], ancilla2[idx])
-                # 이건 절대적 위치 계산한 식임. 이것도 제대로 동작하긴 함.
-            if m == 1:  # 여기 위치가 맞음. t==1일 때 이 if문을 통과하면서 저장할 것임. (t-1) for문의 m=1을 저장하는게 목표.
-                pre = idx
-            idx += 1
+
+    with Compute(eng):
+        for t in range(1, int(log2(n))):
+            for m in range(1, l(n, t)):
+                if t == 1:  # B에 저장되어있는 애들로만 연산 가능
+                    toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancilla2[idx])
+                else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
+                    toffoli_gate(eng, ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1], ancilla2[idx])
+                    # 이건 절대적 위치 계산한 식임. 이것도 제대로 동작하긴 함.
+                if m == 1:  # 여기 위치가 맞음. t==1일 때 이 if문을 통과하면서 저장할 것임. (t-1) for문의 m=1을 저장하는게 목표.
+                    pre = idx
+                idx += 1
 
     # G-round
     pre = 0
@@ -196,6 +204,8 @@ def inDraper_adder(eng, a,b,n):
                              ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1])
 
     # P-inverse round
+    Uncompute(eng)
+    '''
     idx = 0  # ancilla idx
     pre = 0  # 이전 t-1일 때의 [1]의 상대적 위치.
     for t in reversed(range(1, int(log2(n)))):
@@ -208,6 +218,7 @@ def inDraper_adder(eng, a,b,n):
             if m == 1:  # 여기 위치가 맞음. t==1일 때 이 if문을 통과하면서 저장할 것임. (t-1) for문의 m=1을 저장하는게 목표.
                 pre = idx
             idx += 1
+    '''
 
     # Last round
     for i in range(1, n):
@@ -263,8 +274,8 @@ def inDraper_adder(eng, a,b,n):
     # P-inverse round reverse
     idx = 0  # ancilla idx
     pre = 0  # 이전 t-1일 때의 [1]의 상대적 위치.
-    for t in reversed(range(1, int(log2(n-1)))):
-        for m in range(1, l(n-1, t)):
+    for t in reversed(range(1, int(log2(n - 1)))):
+        for m in range(1, l(n - 1, t)):
             if t == 1:  # B에 저장되어있는 애들로만 연산 가능
                 toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancilla2[idx], False)
             else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
@@ -314,19 +325,26 @@ def adder_test(eng, A, B, n):
         print('b: ', end='')
         print_vector(eng, b, n)
 
-    #sum = outDraper_adder(eng,a,b,n)
+    # sum = outDraper_adder(eng,a,b,n)
     sum = inDraper_adder(eng,a,b,n)
 
     if (resource_check == 0):
         print('Add result : ', end='')
         print_vector(eng, sum, n+1)
 
-
 n = 7
-a = 0b1010101
-b = 0b0101010
+a = 0b1111111
+b = 0b1000000
 
-TD = 0
+TD = 2
+resource_check = 0
+eng = MainEngine()
+
+adder_test(eng,a,b,n)
+eng.flush()
+print()
+
+'''
 resource_check = 0
 Resource = ClassicalSimulator()
 eng = MainEngine(Resource)
@@ -337,8 +355,8 @@ eng = MainEngine(Resource)
 adder_test(eng,a,b,n)
 eng.flush()
 print()
+'''
 
-TD = 2
 resource_check = 1
 
 Resource = ResourceCounter()
