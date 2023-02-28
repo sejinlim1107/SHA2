@@ -174,13 +174,14 @@ Adder_Test(eng)
 eng.flush()
 '''
 
+'''
 #### For Gidney Adder Test####
 eng = MainEngine()
 AND_Test(eng)
 #Adder_Test(eng)
 eng.flush()
-
 '''
+
 print()
 resource_check = 1
 NCT = 0
@@ -194,4 +195,3 @@ Gidney_adder(eng, k, s, ancilla, n)
 
 print(Resource)
 eng.flush()
-'''
