@@ -301,9 +301,9 @@ def adder_test(eng, A, B, n):
         print_vector(eng, sum, n+1)
 
 
-n = 32
-a = 0b1111111
-b = 0b0000000
+n = 10
+a = 0b1010101
+b = 0b0101010
 
 TD = 0
 resource_check = 0
