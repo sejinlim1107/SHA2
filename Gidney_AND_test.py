@@ -34,7 +34,6 @@ def logical_and(eng, i, t, c):
 def logical_and_reverse(eng, i, t, c):
     H | c
     Measure | c
-    ##
     if(int(c)):
         with Control(eng, i):
             Z | t
@@ -138,7 +137,7 @@ def AND_Test(eng):
 
     if(resource_check != 1):
         Round_constant_XOR(0b1, s, n) # s - k
-        Round_constant_XOR(0b0, k, n)
+        Round_constant_XOR(0b1, k, n)
 
     print('s: ', end='')
     print_vecotr(eng, s, n)
@@ -161,6 +160,17 @@ def AND_Test(eng):
     print('k: ', end='')
     print_vecotr(eng, k, n)
     print('c: ', end='')
+    print_vecotr(eng, ancilla, n)
+
+    logical_and(eng,s,k,ancilla)
+    print('one more AND')
+    print('s: ', end='')
+    print_vecotr(eng, s, n)
+    print('k: ', end='')
+    print_vecotr(eng, k, n)
+    print('c: ', end='')
+    print_vecotr(eng, ancilla, n)
+
 
 resource_check = 0
 NCT = 1
@@ -174,24 +184,24 @@ Adder_Test(eng)
 eng.flush()
 '''
 
-'''
+
 #### For Gidney Adder Test####
 eng = MainEngine()
 AND_Test(eng)
 #Adder_Test(eng)
 eng.flush()
-'''
-
-print()
-resource_check = 1
-NCT = 0
-s_minus_k = 1
-parallel = 1
-
-Resource = ResourceCounter()
-eng = MainEngine(Resource)
-Gidney_adder(eng, k, s, ancilla, n)
-#Adder_Test(eng)
-
-print(Resource)
-eng.flush()
+#
+#
+# print()
+# resource_check = 1
+# NCT = 0
+# s_minus_k = 1
+# parallel = 1
+#
+# Resource = ResourceCounter()
+# eng = MainEngine(Resource)
+# Gidney_adder(eng, k, s, ancilla, n)
+# #Adder_Test(eng)
+#
+# print(Resource)
+# eng.flush()

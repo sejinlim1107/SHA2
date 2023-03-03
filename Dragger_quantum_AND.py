@@ -8,6 +8,7 @@ from projectq.meta import Loop, Compute, Uncompute, Control, Dagger
 from math import floor, ceil, log10, log2
 
 def quantum_and(eng, a, b, c, ancilla):
+    ancilla = eng.allocate_qubit()
     H | c
     CNOT | (b, ancilla)
     CNOT | (c, a)
@@ -25,15 +26,17 @@ def quantum_and(eng, a, b, c, ancilla):
     S | c
 
 def quantum_and_dag(eng, a, b, c):
-    CNOT | (a, b)
-    S | b  # consider dag -> Sdag
-    CNOT | (a, b)
-    X | c
-    Sdag | b  # consider dag + dag -> S
-    Sdag | a  # consider dag + dag -> S
     with Dagger(eng):
+        if(int(c)):
+            CNOT | (a, b)
+            S | b  # consider dag -> Sdag
+            CNOT | (a, b)
+            X | c
+            Sdag | b  # consider dag + dag -> S
+            Sdag | a  # consider dag + dag -> S
+
         Measure | c
-    H | c
+        H | c
 
 def toffoli_gate(eng, a, b, c, ancilla=0, mode=True):
     if(TD == 1): # 분해 버전 (일반 시뮬레이터 사용 시 / ResourceCounter 사용 시)
@@ -70,8 +73,8 @@ def outDraper_adder(eng, a,b,n):
     length = n-w(n)-floor(log2(n))
     z = eng.allocate_qureg(n+1) # n+1 크기의 결과 저장소 Z 생성
     ancilla = eng.allocate_qureg(length)  # 논문에서 X라고 지칭되는 ancilla
-    if TD == 2: # Quantum AND gate 쓸 때
-        AND_ancilla = eng.allocate_qureg()  # Quantum AND gate에서 쓸 ancilla
+    #if TD == 2: # Quantum AND gate 쓸 때
+    #    AND_ancilla = eng.allocate_qureg()  # Quantum AND gate에서 쓸 ancilla
 
     # Init round
     for i in range(n):
