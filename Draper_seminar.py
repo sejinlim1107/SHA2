@@ -72,7 +72,7 @@ def outDraper_adder(eng,a,b,n):
     z = eng.allocate_qureg(n+1) # n+1 크기의 결과 저장소 Z 생성
     ancilla = eng.allocate_qureg(length)  # 논문에서 X라고 지칭되는 ancilla
 
-        # Init round
+    # Init round
     for i in range(n):
         toffoli_gate(eng, a[i], b[i], z[i + 1])
     for i in range(1,n):
@@ -81,16 +81,18 @@ def outDraper_adder(eng,a,b,n):
     # P-round
     idx = 0 # ancilla idx
     tmp = 0 # m=1일 때 idx 저장해두기
-    for t in range(1, int(log2(n))):
-        pre = tmp  # (t-1)일 때의 첫번째 자리 저장
-        for m in range(1, l(n, t)):
-            if t == 1:  # B에 저장되어있는 애들로만 연산 가능
-                toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancilla[idx])
-            else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
-                toffoli_gate(eng, ancilla[pre - 1 + 2 * m], ancilla[pre - 1 + 2 * m + 1], ancilla[idx])
-            if m == 1:
-                tmp = idx
-            idx += 1
+
+    with Compute(eng):
+        for t in range(1, int(log2(n))):
+            pre = tmp  # (t-1)일 때의 첫번째 자리 저장
+            for m in range(1, l(n, t)):
+                if t == 1:  # B에 저장되어있는 애들로만 연산 가능
+                    toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancilla[idx])
+                else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
+                    toffoli_gate(eng, ancilla[pre - 1 + 2 * m], ancilla[pre - 1 + 2 * m + 1], ancilla[idx])
+                if m == 1:
+                    tmp = idx
+                idx += 1
 
     # G-round
     pre = -1  # 맨처음엔 이전자리가 없으니까
@@ -116,19 +118,7 @@ def outDraper_adder(eng,a,b,n):
                              ancilla[idx+2*m], z[int(pow(2, t) * m + pow(2, t-1))])
 
     # P-inverse round
-    idx = 0  # ancilla idx
-    tmp = 0  # m=1일 때 idx 저장해두기
-    with Dagger(eng):
-        for t in range(1, int(log2(n))):
-            pre = tmp  # (t-1)일 때의 첫번째 자리 저장
-            for m in range(1, l(n, t)):
-                if t == 1:  # B에 저장되어있는 애들로만 연산 가능
-                    toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancilla[idx])
-                else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
-                    toffoli_gate(eng, ancilla[pre - 1 + 2 * m], ancilla[pre - 1 + 2 * m + 1], ancilla[idx])
-                if m == 1:
-                    tmp = idx
-                idx += 1
+    Uncompute(eng)
 
     # Last round
     for i in range(n):
@@ -142,7 +132,7 @@ def outDraper_adder(eng,a,b,n):
 def inDraper_adder(eng, a,b,n):
     length = n-w(n)-floor(log2(n))
     ancilla1 = eng.allocate_qureg(n) # z[1] ~ z[n] 저장
-    ancilla2 = eng.allocate_qureg(length) # 논문에서 X라고 지칭되는 ancilla
+    ancilla2 = eng.allocate_qureg(length)  # 논문에서 X라고 지칭되는 ancilla
 
     # Init round
     for i in range(n):
@@ -153,16 +143,17 @@ def inDraper_adder(eng, a,b,n):
     # P-round
     idx = 0  # ancilla idx
     tmp = 0  # m=1일 때 idx 저장해두기
-    for t in range(1, int(log2(n))):
-        pre = tmp  # (t-1)일 때의 첫번째 자리 저장
-        for m in range(1, l(n, t)):
-            if t == 1:  # B에 저장되어있는 애들로만 연산 가능
-                toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancilla2[idx])
-            else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
-                toffoli_gate(eng, ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1], ancilla2[idx])
-            if m == 1:
-                tmp = idx
-            idx += 1
+    with Compute(eng):
+        for t in range(1, int(log2(n))):
+            pre = tmp  # (t-1)일 때의 첫번째 자리 저장
+            for m in range(1, l(n, t)):
+                if t == 1:  # B에 저장되어있는 애들로만 연산 가능
+                    toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancilla2[idx])
+                else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
+                    toffoli_gate(eng, ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1], ancilla2[idx])
+                if m == 1:
+                    tmp = idx
+                idx += 1
 
     # G-round
     pre = -1  # 맨처음엔 이전자리가 없으니까
@@ -192,19 +183,7 @@ def inDraper_adder(eng, a,b,n):
                              ancilla2[idx+2*m],ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1])
 
     # P-inverse round
-    idx = 0  # ancilla idx
-    tmp = 0  # m=1일 때 idx 저장해두기
-    with Dagger(eng):
-        for t in range(1, int(log2(n))):
-            pre = tmp  # (t-1)일 때의 첫번째 자리 저장
-            for m in range(1, l(n, t)):
-                if t == 1:  # B에 저장되어있는 애들로만 연산 가능
-                    toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancilla2[idx])
-                else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
-                    toffoli_gate(eng, ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1], ancilla2[idx])
-                if m == 1:
-                    tmp = idx
-                idx += 1
+    Uncompute(eng)
 
     # Last round
     for i in range(1, n):
@@ -258,34 +237,7 @@ def inDraper_adder(eng, a,b,n):
         pre = idx  # t-1의 맨마지막
 
     # P-inverse round reverse
-    idx = 0  # ancilla idx
-    tmp = 0  # m=1일 때 idx 저장해두기
-    with Dagger(eng):
-        for t in range(1, int(log2(n - 1))):
-            pre = tmp  # (t-1)일 때의 첫번째 자리 저장
-            for m in range(1, l(n - 1, t)):
-                if t == 1:  # B에 저장되어있는 애들로만 연산 가능
-                    toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancilla2[idx])
-                else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
-                    toffoli_gate(eng, ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1], ancilla2[idx])
-                if m == 1:
-                    tmp = idx
-                idx += 1
-
-    '''
-    idx = 0  # ancilla idx
-    pre = 0  # 이전 t-1일 때의 [1]의 상대적 위치.
-    for t in reversed(range(1, int(log2(n-1)))):
-        for m in range(1, l(n-1, t)):
-            if t == 1:  # B에 저장되어있는 애들로만 연산 가능
-                toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancilla2[idx], False)
-            else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
-                toffoli_gate(eng, ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1], ancilla2[idx], False)
-                # 이건 절대적 위치 계산한 식임. 이것도 제대로 동작하긴 함.
-            if m == 1:  # 여기 위치가 맞음. t==1일 때 이 if문을 통과하면서 저장할 것임. (t-1) for문의 m=1을 저장하는게 목표.
-                pre = idx
-            idx += 1
-    '''
+    Uncompute(eng)
 
     # real last
     for i in range(1,n-1):
@@ -300,7 +252,7 @@ def inDraper_adder(eng, a,b,n):
         result.append(k)
     result.append(ancilla1[-1])
 
-    return result
+    return result, ancilla1, ancilla2
 
 def print_vector(eng, element, length):
     All(Measure) | element
@@ -327,76 +279,26 @@ def adder_test(eng, A, B, n):
         print_vector(eng, b, n)
 
     #sum = outDraper_adder(eng,a,b,n)
-    sum = outDraper_adder(eng,a,b,n)
+    sum, ancilla1, ancilla2 = inDraper_adder(eng,a,b,n)
 
+    length = n - w(n) - floor(log2(n))
     if (resource_check == 0):
         print('Add result : ', end='')
         print_vector(eng, sum, n+1)
 
+        print('ancilla1 result : ', end='')
+        print_vector(eng, ancilla1, n)
+        print('ancilla2 result : ', end='')
+        print_vector(eng, ancilla2, length)
 
-n = 10
+
+n = 5
 a = 0b1010101010
 b = 0b1101010101
 
-'''
 TD = 0
 resource_check = 0
-Resource = ClassicalSimulator()
-eng = MainEngine(Resource)
 
-# for AND gate Test Engine
-# eng = MainEngine()
-
-adder_test(eng,a,b,n)
-eng.flush()
-print()
-'''
-
-TD = 0
-resource_check = 1
-
-Resource = ResourceCounter()
-eng = MainEngine(Resource)
-adder_test(eng,a,b,n)
-print(Resource)
-eng.flush()
-
-'''
-drawing_engine = CircuitDrawer()
-eng = MainEngine(drawing_engine)
-eng.flush()
-print(drawing_engine.get_latex())
-'''
-
-
-'''
-# AND gate Test
 eng = MainEngine()
-n = 1 # bit length
-
-a = eng.allocate_qubit()
-b = eng.allocate_qubit()
-c = eng.allocate_qubit()
-
-round_constant_XOR(1, a, n)
-round_constant_XOR(1, b, n)
-round_constant_XOR(0, c, n)
-
-print_vector(eng,a,n)
-print_vector(eng,b,n)
-print_vector(eng,c,n)
-
-quantum_and(eng,a,b,c)
-
-print_vector(eng,a,n)
-print_vector(eng,b,n)
-print_vector(eng,c,n)
-
-quantum_and_dag(eng,a,b,c)
-
-print_vector(eng,a,n)
-print_vector(eng,b,n)
-print_vector(eng,c,n)
-
+adder_test(eng,a,b,n)
 eng.flush()
-'''

@@ -120,9 +120,9 @@ def outDraper_adder(eng, a,b,n):
                              ancilla[idx+2*m], z[int(pow(2, t) * m + pow(2, t-1))])
 
     # P-inverse round
+    idx = 0  # ancilla idx
+    tmp = 0  # m=1일 때 idx 저장해두기
     with Dagger(eng):
-        idx = 0  # ancilla idx
-        tmp = 0  # m=1일 때 idx 저장해두기
         for t in range(1, int(log2(n))):
             pre = tmp  # (t-1)일 때의 첫번째 자리 저장
             for m in range(1, l(n, t)):
@@ -225,7 +225,7 @@ def inDraper_adder(eng, a,b,n):
                 idx += 1
 
     # C-round reverse
-    for t in range(int(log2(2 * (n-1) / 3)), 0, -1):
+    for t in reversed(range(int(log2(2 * (n-1) / 3)), 0, -1)):
         idx = len(ancilla2) - 1 - (
                 l(((n-1) - pow(2, t - 1)), t) + l(((n-1) - pow(2, t - 2)), t - 1))  # 현재 접근하고자하는 P의 시작 index -1.
         for m in range(1, l(((n-1) - pow(2, t - 1)), t) + 1):
