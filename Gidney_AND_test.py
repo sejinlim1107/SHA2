@@ -9,10 +9,10 @@ from math import floor, ceil, log10, log2
 def MAJ(eng,a,b,c):
     CNOT | (a, b)
     CNOT | (a, c)
-    Toffoli_gate(eng, c,  b, a)
+    Toffoli_gate(eng, c, b, a)
 
 def UMA(eng,a,b,c):
-    Toffoli_gate(eng, c,  b, a)
+    Toffoli_gate(eng, c, b, a)
     CNOT | (c, b)
     CNOT | (a, c)
 
@@ -44,28 +44,25 @@ def Round_constant_XOR(rc, qubits, n):
             X | qubits[i]
 
 def Toffoli_gate(eng, a, b, c):
+    if(TD == 1): # 분해 버전 (일반 시뮬레이터 사용 시 / ResourceCounter 사용 시)
+        Tdag | a
+        Tdag | b
+        H | c
+        CNOT | (c, a)
+        T | a
+        CNOT | (b, c)
+        CNOT | (b, a)
+        T | c
+        Tdag | a
+        CNOT | (b, c)
+        CNOT | (c, a)
+        T | a
+        Tdag | c
+        CNOT | (b, a)
+        H | c
 
-    if (NCT):
+    else: # TD == 0, 분해 안된 버전 사용 (클래식 시뮬레이터 사용 시)
         Toffoli | (a, b, c)
-    else:
-        if(resource_check ==1):
-            Tdag | a
-            Tdag | b
-            H | c
-            CNOT | (c, a)
-            T | a
-            CNOT | (b, c)
-            CNOT | (b, a)
-            T  | c
-            Tdag | a
-            CNOT | (b, c)
-            CNOT | (c, a)
-            T | a
-            Tdag | c
-            CNOT | (b, a)
-            H | c
-        else:
-            Toffoli | (a, b, c)
 
 def Gidney_no_modular_adder(eng, a, b, c, carry, n):
 
@@ -173,9 +170,7 @@ def AND_Test(eng):
 
 
 resource_check = 0
-NCT = 1
-s_minus_k = 1
-parallel = 1
+TD = 1
 
 '''
 Resource = ClassicalSimulator()

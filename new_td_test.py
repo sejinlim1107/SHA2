@@ -7,7 +7,7 @@ from projectq.backends import CircuitDrawer, ResourceCounter, CommandPrinter, Cl
 from projectq.meta import Loop, Compute, Uncompute, Control, Dagger
 from math import floor, ceil, log10, log2
 
-def quantum_and(eng, a, b, c, ancilla):
+def quantum_and(eng, a, b, c):
     ancilla = eng.allocate_qubit()
     H | c
     CNOT | (b, ancilla)
@@ -26,20 +26,30 @@ def quantum_and(eng, a, b, c, ancilla):
     S | c
 
 def quantum_and_dag(eng, a, b, c):
-    with Dagger(eng):
-        if(int(c)):
-            CNOT | (a, b)
-            S | b  # consider dag -> Sdag
-            CNOT | (a, b)
-            X | c
-            Sdag | b  # consider dag + dag -> S
-            Sdag | a  # consider dag + dag -> S
+    H | c
+    Measure | c
+    if(int(c)):
+        S | a
+        S | b
+        X | c
+        CNOT | (a,b)
+        Sdag | b
+        CNOT | (a,b)
 
-        Measure | c
+def Toffoli_gate(eng, a, b, c, mode=True):
+    if(TD == 1): # 분해 버전 (일반 시뮬레이터 사용 시 / ResourceCounter 사용 시)
+        H | c
+        T | c
+        CNOT | (b,c)
+        Tdag | c
+        CNOT | (a,c)
+        T | c
+        CNOT | (b,c)
+        Tdag | c
+        CNOT | (a,c)
         H | c
 
-def toffoli_gate(eng, a, b, c, ancilla=0, mode=True):
-    if(TD == 1): # 분해 버전 (일반 시뮬레이터 사용 시 / ResourceCounter 사용 시)
+        '''
         Tdag | a
         Tdag | b
         H | c
@@ -55,9 +65,10 @@ def toffoli_gate(eng, a, b, c, ancilla=0, mode=True):
         Tdag | c
         CNOT | (b, a)
         H | c
+        '''
     elif TD == 2: # Quantum AND (일반 시뮬레이터 사용 시 / ResourceCounter 사용 시)
         if mode:
-            quantum_and(eng, a, b, c, ancilla)
+            quantum_and(eng, a, b, c)
         else:
             quantum_and_dag(eng, a, b, c)
     else: # TD == 0, 분해 안된 버전 사용 (클래식 시뮬레이터 사용 시)
@@ -69,29 +80,27 @@ def w(n): # for draper
 def l(n, t): # for draper
     return int(floor(n / (pow(2, t))))
 
-def outDraper_adder(eng, a,b,n):
+def outDraper_adder(eng,a,b,n):
     length = n-w(n)-floor(log2(n))
     z = eng.allocate_qureg(n+1) # n+1 크기의 결과 저장소 Z 생성
     ancilla = eng.allocate_qureg(length)  # 논문에서 X라고 지칭되는 ancilla
-    #if TD == 2: # Quantum AND gate 쓸 때
-    #    AND_ancilla = eng.allocate_qureg()  # Quantum AND gate에서 쓸 ancilla
 
-    # Init round
+        # Init round
     for i in range(n):
-        toffoli_gate(eng, a[i], b[i], z[i + 1])
+        Toffoli_gate(eng, a[i], b[i], z[i + 1])
     for i in range(1,n):
         CNOT | (a[i], b[i])
 
     # P-round
-    idx = 0  # ancilla idx
+    idx = 0 # ancilla idx
     tmp = 0 # m=1일 때 idx 저장해두기
     for t in range(1, int(log2(n))):
         pre = tmp  # (t-1)일 때의 첫번째 자리 저장
         for m in range(1, l(n, t)):
             if t == 1:  # B에 저장되어있는 애들로만 연산 가능
-                toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancilla[idx])
+                Toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancilla[idx])
             else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
-                toffoli_gate(eng, ancilla[pre - 1 + 2 * m], ancilla[pre - 1 + 2 * m + 1], ancilla[idx])
+                Toffoli_gate(eng, ancilla[pre - 1 + 2 * m], ancilla[pre - 1 + 2 * m + 1], ancilla[idx])
             if m == 1:
                 tmp = idx
             idx += 1
@@ -102,10 +111,10 @@ def outDraper_adder(eng, a,b,n):
     for t in range(1, int(log2(n)) + 1):
         for m in range(l(n, t)):
             if t == 1:  # B에 저장되어있는 애들로만 연산 가능
-                toffoli_gate(eng, z[int(pow(2, t) * m + pow(2, t - 1))], b[2 * m + 1], z[int(pow(2, t) * (m + 1))])
+                Toffoli_gate(eng, z[int(pow(2, t) * m + pow(2, t - 1))], b[2 * m + 1], z[int(pow(2, t) * (m + 1))])
             else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
                 idx = pre + 2 * m + 1
-                toffoli_gate(eng, z[int(pow(2, t) * m + pow(2, t - 1))], ancilla[idx], z[int(pow(2, t) * (m + 1))])
+                Toffoli_gate(eng, z[int(pow(2, t) * m + pow(2, t - 1))], ancilla[idx], z[int(pow(2, t) * (m + 1))])
         pre = idx  # t-1의 맨마지막
 
     # C-round
@@ -114,9 +123,9 @@ def outDraper_adder(eng, a,b,n):
                     l((n - pow(2, t - 1)), t) + l((n - pow(2, t - 2)), t - 1))  # 현재 접근하고자하는 P의 시작 index -1.
         for m in range(1, l((n - pow(2, t-1)),t)+1):
             if t == 1:  # B에 저장되어있는 애들로만 연산 가능
-                toffoli_gate(eng, z[int(pow(2, t) * m)], b[2 * m], z[int(pow(2, t) * m + pow(2, t - 1))])
+                Toffoli_gate(eng, z[int(pow(2, t) * m)], b[2 * m], z[int(pow(2, t) * m + pow(2, t - 1))])
             else:
-                toffoli_gate(eng, z[int(pow(2, t) * m)],
+                Toffoli_gate(eng, z[int(pow(2, t) * m)],
                              ancilla[idx+2*m], z[int(pow(2, t) * m + pow(2, t-1))])
 
     # P-inverse round
@@ -127,9 +136,9 @@ def outDraper_adder(eng, a,b,n):
             pre = tmp  # (t-1)일 때의 첫번째 자리 저장
             for m in range(1, l(n, t)):
                 if t == 1:  # B에 저장되어있는 애들로만 연산 가능
-                    toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancilla[idx],False)
+                    Toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancilla[idx])
                 else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
-                    toffoli_gate(eng, ancilla[pre - 1 + 2 * m], ancilla[pre - 1 + 2 * m + 1], ancilla[idx],False)
+                    Toffoli_gate(eng, ancilla[pre - 1 + 2 * m], ancilla[pre - 1 + 2 * m + 1], ancilla[idx])
                 if m == 1:
                     tmp = idx
                 idx += 1
@@ -141,33 +150,39 @@ def outDraper_adder(eng, a,b,n):
     for i in range(1, n):
         CNOT | (a[i], b[i])
 
+    print('ancilla result : ', end='')
+    print_vector(eng, ancilla, length)
+    print('a result : ', end='')
+    print_vector(eng, a, n)
+    print('b result : ', end='')
+    print_vector(eng, b, n)
+
     return z
 
 def inDraper_adder(eng, a,b,n):
     length = n-w(n)-floor(log2(n))
     ancilla1 = eng.allocate_qureg(n) # z[1] ~ z[n] 저장
-    ancilla2 = eng.allocate_qureg(length)  # 논문에서 X라고 지칭되는 ancilla
+    ancilla2 = eng.allocate_qureg(length) # 논문에서 X라고 지칭되는 ancilla
 
     # Init round
     for i in range(n):
-        toffoli_gate(eng, a[i], b[i], ancilla1[i]) # ancilla1[0] == Z[1]
+        Toffoli_gate(eng, a[i], b[i], ancilla1[i]) # ancilla1[0] == Z[1]
     for i in range(n):
         CNOT | (a[i], b[i])
 
     # P-round
     idx = 0  # ancilla idx
     tmp = 0  # m=1일 때 idx 저장해두기
-    with Compute(eng):
-        for t in range(1, int(log2(n))):
-            pre = tmp  # (t-1)일 때의 첫번째 자리 저장
-            for m in range(1, l(n, t)):
-                if t == 1:  # B에 저장되어있는 애들로만 연산 가능
-                    toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancilla2[idx])
-                else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
-                    toffoli_gate(eng, ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1], ancilla2[idx])
-                if m == 1:
-                    tmp = idx
-                idx += 1
+    for t in range(1, int(log2(n))):
+        pre = tmp  # (t-1)일 때의 첫번째 자리 저장
+        for m in range(1, l(n, t)):
+            if t == 1:  # B에 저장되어있는 애들로만 연산 가능
+                Toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancilla2[idx])
+            else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
+                Toffoli_gate(eng, ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1], ancilla2[idx])
+            if m == 1:
+                tmp = idx
+            idx += 1
 
     # G-round
     pre = -1  # 맨처음엔 이전자리가 없으니까
@@ -176,11 +191,11 @@ def inDraper_adder(eng, a,b,n):
         for m in range(l(n, t)):
             if t == 1:  # B에 저장되어있는 애들로만 연산 가능
                 # print(int(mt.pow(2, t)*m + mt.pow(2, t-1)-1),2 * m + 1,int(mt.pow(2, t)*(m+1))-1)
-                toffoli_gate(eng,ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], b[2 * m + 1],
+                Toffoli_gate(eng, ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], b[2 * m + 1],
                              ancilla1[int(pow(2, t) * (m + 1)) - 1])
             else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
                 idx = pre+2*m+1
-                toffoli_gate(eng,ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], ancilla2[idx],
+                Toffoli_gate(eng, ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], ancilla2[idx],
                              ancilla1[int(pow(2, t) * (m + 1)) - 1])
         pre = idx # t-1의 맨마지막
 
@@ -190,14 +205,26 @@ def inDraper_adder(eng, a,b,n):
                     l((n - pow(2, t - 1)), t) + l((n - pow(2, t - 2)), t - 1))  # 현재 접근하고자하는 P의 시작 index -1.
         for m in range(1, l((n - pow(2, t - 1)), t) + 1):
             if t == 1:  # B에 저장되어있는 애들로만 연산 가능
-                toffoli_gate(eng,ancilla1[int(pow(2, t) * m) - 1], b[2 * m],
+                Toffoli_gate(eng, ancilla1[int(pow(2, t) * m) - 1], b[2 * m],
                              ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1])
             else:
-                toffoli_gate(eng,ancilla1[int(pow(2, t) * m) - 1],
-                             ancilla2[idx+2*m],ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1])
+                Toffoli_gate(eng, ancilla1[int(pow(2, t) * m) - 1],
+                             ancilla2[idx+2*m], ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1])
 
     # P-inverse round
-    Uncompute(eng)
+    idx = 0  # ancilla idx
+    tmp = 0  # m=1일 때 idx 저장해두기
+    with Dagger(eng):
+        for t in range(1, int(log2(n))):
+            pre = tmp  # (t-1)일 때의 첫번째 자리 저장
+            for m in range(1, l(n, t)):
+                if t == 1:  # B에 저장되어있는 애들로만 연산 가능
+                    Toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancilla2[idx])
+                else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
+                    Toffoli_gate(eng, ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1], ancilla2[idx])
+                if m == 1:
+                    tmp = idx
+                idx += 1
 
     # Last round
     for i in range(1, n):
@@ -212,17 +239,16 @@ def inDraper_adder(eng, a,b,n):
     # P-round reverse
     idx = 0  # ancilla idx
     tmp = 0  # m=1일 때 idx 저장해두기
-    with Compute(eng):
-        for t in range(1, int(log2(n-1))):
-            pre = tmp  # (t-1)일 때의 첫번째 자리 저장
-            for m in range(1, l(n-1, t)):
-                if t == 1:  # B에 저장되어있는 애들로만 연산 가능
-                    toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancilla2[idx])
-                else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
-                    toffoli_gate(eng, ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1], ancilla2[idx])
-                if m == 1:
-                    tmp = idx
-                idx += 1
+    for t in range(1, int(log2(n-1))):
+        pre = tmp  # (t-1)일 때의 첫번째 자리 저장
+        for m in range(1, l(n-1, t)):
+            if t == 1:  # B에 저장되어있는 애들로만 연산 가능
+                Toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancilla2[idx])
+            else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
+                Toffoli_gate(eng, ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1], ancilla2[idx])
+            if m == 1:
+                tmp = idx
+            idx += 1
 
     # C-round reverse
     for t in reversed(range(int(log2(2 * (n-1) / 3)), 0, -1)):
@@ -230,10 +256,10 @@ def inDraper_adder(eng, a,b,n):
                 l(((n-1) - pow(2, t - 1)), t) + l(((n-1) - pow(2, t - 2)), t - 1))  # 현재 접근하고자하는 P의 시작 index -1.
         for m in range(1, l(((n-1) - pow(2, t - 1)), t) + 1):
             if t == 1:  # B에 저장되어있는 애들로만 연산 가능
-                toffoli_gate(eng, ancilla1[int(pow(2, t) * m) - 1], b[2 * m],
+                Toffoli_gate(eng, ancilla1[int(pow(2, t) * m) - 1], b[2 * m],
                              ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1])
             else:
-                toffoli_gate(eng, ancilla1[int(pow(2, t) * m) - 1],
+                Toffoli_gate(eng, ancilla1[int(pow(2, t) * m) - 1],
                              ancilla2[idx + 2 * m], ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1])
 
     # G-round reverse
@@ -243,16 +269,29 @@ def inDraper_adder(eng, a,b,n):
         for m in range(l(n-1, t)):
             if t == 1:  # B에 저장되어있는 애들로만 연산 가능
                 # print(int(mt.pow(2, t)*m + mt.pow(2, t-1)-1),2 * m + 1,int(mt.pow(2, t)*(m+1))-1)
-                toffoli_gate(eng, ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], b[2 * m + 1],
+                Toffoli_gate(eng, ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], b[2 * m + 1],
                              ancilla1[int(pow(2, t) * (m + 1)) - 1])
             else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
                 idx = pre + 2 * m + 1
-                toffoli_gate(eng, ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], ancilla2[idx],
+                Toffoli_gate(eng, ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], ancilla2[idx],
                              ancilla1[int(pow(2, t) * (m + 1)) - 1])
         pre = idx  # t-1의 맨마지막
 
     # P-inverse round reverse
-    Uncompute(eng)
+    idx = 0  # ancilla idx
+    tmp = 0  # m=1일 때 idx 저장해두기
+    with Dagger(eng):
+        for t in range(1, int(log2(n - 1))):
+            pre = tmp  # (t-1)일 때의 첫번째 자리 저장
+            for m in range(1, l(n - 1, t)):
+                if t == 1:  # B에 저장되어있는 애들로만 연산 가능
+                    Toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancilla2[idx])
+                else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
+                    Toffoli_gate(eng, ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1], ancilla2[idx])
+                if m == 1:
+                    tmp = idx
+                idx += 1
+
     '''
     idx = 0  # ancilla idx
     pre = 0  # 이전 t-1일 때의 [1]의 상대적 위치.
@@ -272,7 +311,7 @@ def inDraper_adder(eng, a,b,n):
     for i in range(1,n-1):
         CNOT | (a[i], b[i])
     for i in range(n-1):
-        toffoli_gate(eng, a[i], b[i], ancilla1[i], False)
+        Toffoli_gate(eng, a[i], b[i], ancilla1[i], False)
     for i in range(n-1):
         X | b[i]
 
@@ -280,6 +319,16 @@ def inDraper_adder(eng, a,b,n):
     for k in b:
         result.append(k)
     result.append(ancilla1[-1])
+
+    print('ancilla1 result : ', end='')
+    print_vector(eng, ancilla1, n)
+    print('ancilla2 result : ', end='')
+    print_vector(eng, ancilla2, length)
+    print('a result : ', end='')
+    print_vector(eng, a, n)
+    print('b result : ', end='')
+    print_vector(eng, b, n)
+
 
     return result
 
@@ -308,21 +357,22 @@ def adder_test(eng, A, B, n):
         print_vector(eng, b, n)
 
     #sum = outDraper_adder(eng,a,b,n)
-    sum = outDraper_adder(eng,a,b,n)
+    sum = inDraper_adder(eng,a,b,n)
 
     if (resource_check == 0):
         print('Add result : ', end='')
         print_vector(eng, sum, n+1)
 
 
-n = 4
-a = 0b1010101010
-b = 0b0101010101
+n = 7
+a = 0b1111111
+b = 0b1111111
 
-TD = 2
+'''
+TD = 0
 resource_check = 0
-#Resource = ClassicalSimulator()
-eng = MainEngine()#Resource)
+Resource = ClassicalSimulator()
+eng = MainEngine(Resource)
 
 # for AND gate Test Engine
 # eng = MainEngine()
@@ -330,15 +380,21 @@ eng = MainEngine()#Resource)
 adder_test(eng,a,b,n)
 eng.flush()
 print()
+'''
 
-TD = 2
-resource_check = 1
+TD = 1
+resource_check = 0
 
-Resource = ResourceCounter()
-eng = MainEngine(Resource)
+eng = MainEngine()
 adder_test(eng,a,b,n)
-print(Resource)
 eng.flush()
+
+'''
+drawing_engine = CircuitDrawer()
+eng = MainEngine(drawing_engine)
+eng.flush()
+print(drawing_engine.get_latex())
+'''
 
 
 '''
