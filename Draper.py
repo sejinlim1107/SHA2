@@ -261,7 +261,7 @@ def inDraper_adder(eng, a,b,n):
                 #print(pre - 1 + 2 * m,pre - 1 + 2 * m + 1,idx-1+m)
 
 
-    # Last round
+    # mid round
     for i in range(1, n):
         CNOT | (ancilla1[i - 1], b[i])
     for i in range(n-1):
