@@ -384,10 +384,10 @@ print()
 
 TD = 1
 resource_check = 0
-
-eng = MainEngine()
-adder_test(eng,a,b,n)
-eng.flush()
+#
+# eng = MainEngine()
+# adder_test(eng,a,b,n)
+# eng.flush()
 
 '''
 drawing_engine = CircuitDrawer()
@@ -397,7 +397,7 @@ print(drawing_engine.get_latex())
 '''
 
 
-'''
+
 # AND gate Test
 eng = MainEngine()
 n = 1 # bit length
@@ -410,21 +410,19 @@ round_constant_XOR(1, a, n)
 round_constant_XOR(1, b, n)
 round_constant_XOR(0, c, n)
 
-print_vector(eng,a,n)
-print_vector(eng,b,n)
-print_vector(eng,c,n)
+quantum_and(eng,a,b,c)
+#
+# print("1차 AND")
+# print_vector(eng,a,n)
+# print_vector(eng,b,n)
+# print_vector(eng,c,n)
 
 quantum_and(eng,a,b,c)
+quantum_and(eng,a,b,c)
 
-print_vector(eng,a,n)
-print_vector(eng,b,n)
-print_vector(eng,c,n)
-
-quantum_and_dag(eng,a,b,c)
-
+print("2차 AND")
 print_vector(eng,a,n)
 print_vector(eng,b,n)
 print_vector(eng,c,n)
 
 eng.flush()
-'''

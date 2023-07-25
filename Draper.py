@@ -5,7 +5,7 @@ from projectq import MainEngine
 from projectq.ops import H, CNOT, Measure, Toffoli, X, All, Swap, Z, T, Tdag, S, Tdagger, Sdag
 from projectq.backends import CircuitDrawer, ResourceCounter, CommandPrinter, ClassicalSimulator
 from projectq.meta import Loop, Compute, Uncompute, Control, Dagger
-from math import floor, ceil, log10, log2
+from math import floor, ceil, log2
 
 def quantum_and(eng, a, b, c):
     ancilla = eng.allocate_qubit()
@@ -246,7 +246,7 @@ def inDraper_adder(eng, a,b,n):
     iter = l(n, int(log2(n)) - 1) - 1  # 마지막 pt의 개수
     iter2 = 0  # for idx
     idx = 0
-    for t in range(1, int(log2(n))):
+    for t in reversed(range(1, int(log2(n)))):
         for m in range(1, l(n, t)):
             if t == 1:  # B에 저장되어있는 애들로만 연산 가능
                 toffoli_gate(eng, b[2 * m], b[2 * m + 1], ancilla2[m - t])
@@ -405,7 +405,7 @@ def adder_test(eng, A, B, n):
         print_vector(eng, b, n)
 
     #sum = outDraper_adder(eng,a,b,n)
-    sum = inDraper_adder(eng,a,b,n)
+    sum = outDraper_adder(eng,a,b,n)
 
     if (resource_check == 0):
         length = n - w(n) - floor(log2(n))
@@ -413,7 +413,7 @@ def adder_test(eng, A, B, n):
         print_vector(eng, sum, n+1)
 
 
-n = 3
+n = 10
 a = 0b111111111
 b = 0b111111111
 
@@ -432,13 +432,13 @@ print()
 '''
 
 TD = 0
-resource_check = 0
+resource_check = 1
 
-# Resource = ResourceCounter()
-# eng = MainEngine(Resource)
-eng = MainEngine()
+Resource = ResourceCounter()
+eng = MainEngine(Resource)
+#eng = MainEngine()
 adder_test(eng,a,b,n)
-#print(Resource)
+print(Resource)
 eng.flush()
 
 '''
