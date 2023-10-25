@@ -4,6 +4,8 @@ from projectq.backends import CircuitDrawer, ResourceCounter, CommandPrinter, Cl
 from projectq.meta import Loop, Compute, Uncompute, Control, Dagger
 from math import floor, ceil, log2
 
+### 안실라 개수 확인하려고 ###
+
 def quantum_and(a, b, c, ancilla):
     H | c
     CNOT | (b, ancilla)
@@ -61,18 +63,17 @@ def w(n): # for draper
 def l(n, t): # for draper
     return int(floor(n / (pow(2, t))))
 
-def outDraper(a,b,ancillas,n):
-    z = ancillas[0]
+def outDraper(a,b,z,ancillas,n):
     length = n-1-w(n-1)-floor(log2(n-1))
     #ancilla = eng.allocate_qureg(length)  # 논문에서 X라고 지칭되는 ancilla
-    ancilla = ancillas[1]
+    ancilla = ancillas[:length]
     and_len = n-1
     #and_ancilla = eng.allocate_qureg(and_len)
-    and_ancilla = ancillas[2]
+    and_ancilla = ancillas[length:length+n-1]
     and_idx = 0
     tmp_len = (n-1)-w(n-1)
     #tmp_ancilla = eng.allocate_qureg(tmp_len)
-    tmp_ancilla = ancillas[3]
+    tmp_ancilla = ancillas[length+n-1:]
     tmp_idx = 0
 
     # Init round
@@ -308,19 +309,19 @@ def outDraper_dag(a,b,z,ancillas,n):
     return z
 
 def inDraper(a,b,ancillas,n):
+
     length = n-1-w(n-1)-floor(log2(n-1))
     #ancilla1 = eng.allocate_qureg(n-1) # z[1] ~ z[n] 저장
-    ancilla1 = ancillas[0]
+    ancilla1 = ancillas[:n-1]
     #ancilla2 = eng.allocate_qureg(length) # 논문에서 X라고 지칭되는 ancilla
-    ancilla2 = ancillas[1]
-
+    ancilla2 = ancillas[n-1:n-1+length]
     and_len = n - 1
     #and_ancilla = eng.allocate_qureg(and_len)
-    and_ancilla = ancillas[2]
+    and_ancilla = ancillas[n-1+length:2*n-2+length]
     and_idx = 0
     tmp_len = (n - 1) - w(n - 1)
     #tmp_ancilla = eng.allocate_qureg(tmp_len)
-    tmp_ancilla = ancillas[3]
+    tmp_ancilla = ancillas[2*n-2+length:]
     tmp_idx = 0
 
     # Init round
@@ -554,10 +555,7 @@ def inDraper(a,b,ancillas,n):
 def adder_test(eng, A, B, n):
     a = eng.allocate_qureg(n)
     b = eng.allocate_qureg(n)
-    ancilla = []
-
-    for i in range(4):
-        ancilla.append(eng.allocate_qureg(n))
+    ancilla = eng.allocate_qureg(111)
 
     if (resource_check == 0):
         round_constant_XOR(A, a, n)
@@ -571,13 +569,7 @@ def adder_test(eng, A, B, n):
         print_vector(b, n)
 
     # sum = inDraper(a,b, ancilla, n)
-    sum = outDraper(a,b, ancilla, n)
-
-    if (resource_check == 0):
-        print('Add result : ', end='')
-        print_vector(sum, n)
-
-    sum = outDraper_dag(a, b, sum, ancilla[1:], n)
+    sum = outDraper(a,b, ancilla[:32], ancilla[32:], n)
 
     if (resource_check == 0):
         print('Add result : ', end='')
@@ -600,11 +592,11 @@ if __name__ == "__main__":
     b = 0b00111010011011111110011001100111
 
     TD = 0
-    resource_check = 1
+    resource_check = 0
 
-    #Resource = ClassicalSimulator()
-    Resource = ResourceCounter()
+    Resource = ClassicalSimulator()
+    #Resource = ResourceCounter()
     eng = MainEngine(Resource)
     adder_test(eng,a,b,n)
-    print(Resource)
+    #print(Resource)
     eng.flush()
