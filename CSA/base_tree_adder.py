@@ -58,6 +58,16 @@ class BaseTreeAdder(ABC):
         yield [cirq.CNOT(a, d)]
         yield [cirq.CNOT(b, c)]
 
+    def modQFA(self, a, b, c):
+        yield [cirq.CNOT(a, b)]
+        yield [cirq.CNOT(b, c)]
+        yield [cirq.CNOT(a, b)]
+
+    def modQFA_R(self, a, b, c): # modQFA랑 똑같은데 헷갈릴까봐 R도 만듦
+        yield [cirq.CNOT(a, b)]
+        yield [cirq.CNOT(b, c)]
+        yield [cirq.CNOT(a, b)]
+
     '''
     def QHA(self, a, b, c):
         yield [cirq.TOFFOLI(a, b, c)]

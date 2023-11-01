@@ -29,6 +29,7 @@ class InplaceAdder(BaseAdder):
 
     def construct_circuit(self):
         n = len(self.A)
+        print("draper ", n)
         init = []
         p_round = []
         g_round = []
@@ -41,12 +42,12 @@ class InplaceAdder(BaseAdder):
         c_round_uncom = []
         last_round = []
 
-        length = n - self.w(n) - floor(log2(n))
-        ancilla1 = [cirq.NamedQubit("z" + str(i)) for i in range(n)]
+        length = n-1 - self.w(n-1) - floor(log2(n-1))
+        ancilla1 = [cirq.NamedQubit("z" + str(i)) for i in range(n-1)]
         ancilla2 = [cirq.NamedQubit("ancilla2" + str(i)) for i in range(length)]
 
         # Init round
-        for i in range(n):
+        for i in range(n-1):
             init.append(self.Toffoli(self.A[i], self.B[i], ancilla1[i])) # ancilla1[0] == Z[1]
         for i in range(n):
             init.append(cirq.CNOT(self.A[i], self.B[i]))
@@ -54,14 +55,15 @@ class InplaceAdder(BaseAdder):
         # P-round
         # print("P-rounds")
         idx = 0  # ancilla idx
-        tmp = 0
-        for t in range(1, int(log2(n))):
-            pre = tmp
-            for m in range(1, self.l(n, t)):
-                if t == 1:
+        tmp = 0  # m=1일 때 idx 저장해두기
+        for t in range(1, int(log2(n - 1))):
+            pre = tmp  # (t-1)일 때의 첫번째 자리 저장
+            # print("t ========== ",t)
+            for m in range(1, self.l(n - 1, t)):
+                if t == 1:  # B에 저장되어있는 애들로만 연산 가능
                     p_round.append(self.Toffoli(self.B[2*m], self.B[2*m+1], ancilla2[idx]))
-                    #print(2*m,2*m+1,idx)
-                else:
+                    # print(2*m,2*m+1,idx)
+                else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
                     p_round.append(self.Toffoli(ancilla2[pre-1+2*m], ancilla2[pre-1+2*m+1], ancilla2[idx]))
                     # print(pre - 1 + 2 * m,pre - 1 + 2 * m + 1,idx)
                 if m == 1:
@@ -72,58 +74,58 @@ class InplaceAdder(BaseAdder):
         # print("G-rounds")
         pre = 0  # The number of cumulative p(t-1)
         idx = 0  # ancilla idx
-        for t in range(1, int(log2(n))+1):
-            for m in range(self.l(n, t)):
-                if t == 1:
+        for t in range(1, int(log2(n - 1)) + 1):
+            # print("t = ",t)
+            for m in range(self.l(n - 1, t)):
+                if t == 1:  # B에 저장되어있는 애들로만 연산 가능
                     g_round.append(self.Toffoli(ancilla1[int(pow(2, t)*m + pow(2, t-1))-1], self.B[2 * m + 1], ancilla1[int(pow(2, t)*(m+1))-1]))
-                    #print(int(pow(2, t) * m + pow(2, t - 1)) - 1,2 * m + 1,int(pow(2, t) * (m + 1)) - 1)
-                else:
+                    # print(int(pow(2, t) * m + pow(2, t - 1)) - 1,2 * m + 1,int(pow(2, t) * (m + 1)) - 1)
+                else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
                     # print(int(pow(2, t) * m + pow(2, t - 1)) - 1,idx+2*m,int(pow(2, t) * (m + 1)) - 1)
                     g_round.append(self.Toffoli(ancilla1[int(pow(2, t)*m + pow(2, t-1))-1], ancilla2[idx+2*m], ancilla1[int(pow(2, t)*(m+1))-1]))
             if t != 1:
-                pre = pre + self.l(n, t - 1) - 1
+                pre = pre + self.l(n - 1, t - 1) - 1
                 idx = pre
 
         # C-round
         # print("C-rounds")
-        if int(log2(n)) - 1 == int(log2(2 * n / 3)):
-            iter = self.l(n, int(log2(n)) - 1) - 1
-        else:
+        if int(log2(n - 1)) - 1 == int(log2(2 * (n - 1) / 3)):  # p(t-1)까지 접근함
+            iter = self.l(n - 1, int(log2(n - 1)) - 1) - 1  # 마지막 pt의 개수
+        else:  # p(t)까지 접근함
             iter = 0
-        pre = 0
-        for t in range(int(log2(2*n/3)),0,-1):
-            for m in range(1,self.l((n-pow(2,t-1)), t)+1):
-                if t == 1:
-                    # print(int(pow(2, t) * m) - 1,2 * m,int(pow(2, t) * m + pow(2, t - 1)) - 1)
+        pre = 0  # (t-1)일 때의 첫번째 idx
+        for t in range(int(log2(2 * (n - 1) / 3)), 0, -1):
+            # print("t=",t)
+            for m in range(1, self.l(((n - 1) - pow(2, t - 1)), t) + 1):
+                if t == 1:  # B에 저장되어있는 애들로만 연산 가능
                     c_round.append(
-                        self.Toffoli(ancilla1[int(pow(2, t) * m)-1], self.B[2 * m], ancilla1[int(pow(2, t) * m + pow(2, t - 1))-1]))
+                        self.Toffoli(ancilla1[int(pow(2, t) * m) - 1], self.B[2 * m],
+                                     ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1]))
                 else:
                     if m == 1:
-                        iter += self.l(n, t - 1) - 1
+                        iter += self.l(n - 1, t - 1) - 1
                         pre = length - 1 - iter
                     c_round.append(self.Toffoli(ancilla1[int(pow(2, t) * m)-1], ancilla2[pre + 2 * m],ancilla1[int(pow(2, t) * m + pow(2, t - 1))-1]))
-                    #print(int(pow(2, t) * m) - 1,pre + 2 * m,int(pow(2, t) * m + pow(2, t - 1)) - 1)
 
         # P-round uncompute
         # print("P-inverse round")
-        pre = 0
-        iter = self.l(n, int(log2(n)) - 1) - 1
+        pre = 0  # (t-1)일 때의 첫번째 idx
+        iter = self.l(n - 1, int(log2(n - 1)) - 1) - 1  # 마지막 pt의 개수
         iter2 = 0  # for idx
         idx = 0
-        for t in reversed(range(1, int(log2(n)))):
-            for m in range(1, self.l(n, t)):
-                if t == 1:
+        for t in reversed(range(1, int(log2(n - 1)))):
+            for m in range(1, self.l(n - 1, t)):
+                if t == 1:  # B에 저장되어있는 애들로만 연산 가능
                     p_round_uncom.append(self.Toffoli(self.B[2 * m], self.B[2 * m + 1], ancilla2[m - t]))
                     # print(2*m, 2*m+1, m-t)
-                else:
+                else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
                     if m == 1:
-                        iter += self.l(n, t - 1) - 1  # p(t-1) last idx
+                        iter += self.l(n - 1, t - 1) - 1  # p(t-1) last idx
                         pre = length - iter
-                        iter2 += (self.l(n, t) - 1)
+                        iter2 += (self.l(n - 1, t) - 1)
                         idx = length - iter2
                     p_round_uncom.append(self.Toffoli(ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1],
-                                 ancilla2[idx - 1 + m]))
-                    # print(pre - 1 + 2 * m,pre - 1 + 2 * m + 1,idx-1+m)
+                                                      ancilla2[idx - 1 + m]))
 
         # mid round
         mid_round.append(cirq.CNOT(ancilla1[i-1], self.B[i]) for i in range(1, n))
@@ -141,7 +143,7 @@ class InplaceAdder(BaseAdder):
         for t in range(1, int(log2(n - 1))):
             if t > 1:
                 pre = iter
-                iter += self.l(n, t - 1) - 1  # ancilla idx. n is right.
+                iter += self.l(n-1, t - 1) - 1  # ancilla idx. n is right.
                 idx = iter
             for m in range(1, self.l(n - 1, t)):
                 if t == 1:
@@ -169,17 +171,13 @@ class InplaceAdder(BaseAdder):
                     c_round_uncom.append(self.Toffoli(ancilla1[int(pow(2, t) * m) - 1],
                                  ancilla2[idx - 1 + 2 * m], ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1]))
                     if m == 1:
-                        pre += self.l(n, t - 1) - 1
+                        pre += self.l(n-1, t-1) -1
 
         # G-round uncom
         # print("G-inv-rounds")
         pre = 0
-        idx_t = int(log2(n))
-        if int(log2(n)) != int(log2(n - 1)):
-            iter = self.l(n, idx_t - 1) - 1
-            idx_t -= 1
-        else:
-            iter = 0
+        idx_t = int(log2(n-1))
+        iter = 0
         for t in reversed(range(1, int(log2(n - 1)) + 1)):
             for m in range(self.l(n - 1, t)):
                 if t == 1:
@@ -188,7 +186,7 @@ class InplaceAdder(BaseAdder):
                                  ancilla1[int(pow(2, t) * (m + 1)) - 1]))
                 else:
                     if m == 0:
-                        iter += self.l(n, idx_t - 1) - 1  # p(t-1) last idx
+                        iter += self.l(n-1, idx_t - 1) - 1  # p(t-1) last idx
                         pre = length - iter
                         idx_t -= 1
 
@@ -198,30 +196,24 @@ class InplaceAdder(BaseAdder):
 
         # re_p_round uncom
         # print("P-inverse round reverse")
-        pre = 0
-        idx_t = int(log2(n)) - 1
-        if int(log2(n)) != int(log2(n - 1)):
-            iter = self.l(n, idx_t) - 1 + self.l(n, idx_t - 1) - 1
-            iter2 = self.l(n, idx_t) - 1
-            idx_t -= 1
-        else:
-            iter = self.l(n, idx_t) - 1
-            iter2 = 0  # for idx
+        pre = 0  # (t-1)일 때의 첫번째 idx
+        idx_t = int(log2(n - 1)) - 1  # n-1이 아니라 n일 때의 t의 범위
+        iter = self.l(n - 1, idx_t) - 1
+        iter2 = 0  # for idx
         for t in reversed(range(1, int(log2(n - 1)))):
             # print("t=",t)
             for m in range(1, self.l(n - 1, t)):
-                if t == 1:
+                if t == 1:  # B에 저장되어있는 애들로만 연산 가능
                     re_p_round_uncom.append(self.Toffoli(self.B[2 * m], self.B[2 * m + 1], ancilla2[m - t]))
                     # print(2*m,2*m+1,m-t)
-                else:
+                else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
                     if m == 1:
-                        iter += self.l(n, idx_t - 1) - 1  # p(t-1) last idx
+                        iter += self.l(n - 1, idx_t - 1) - 1  # p(t-1) last idx
                         pre = length - iter
-                        iter2 += self.l(n, idx_t) - 1
+                        iter2 += self.l(n - 1, idx_t) - 1
                         idx = length - iter2
                         idx_t -= 1
                     re_p_round_uncom.append(self.Toffoli(ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1], ancilla2[idx - 1 + m]))
-                    # print(pre - 1 + 2 * m,pre - 1 + 2 * m + 1,idx-1+m)
 
         # last round
         last_round.append(cirq.CNOT(self.A[i], self.B[i]) for i in range(1, n-1))
@@ -258,12 +250,11 @@ class InplaceAdder(BaseAdder):
 
         for k in self.B:
             result.append(k)
-        result.append(ancilla1[-1])
 
         return circuit, result
 
 if __name__ == '__main__':
-    n = 10
+    n = 32
 
     A = [cirq.NamedQubit("IN0_" + str(i)) for i in range(n)]
     B = [cirq.NamedQubit("IN1_" + str(i)) for i in range(n)]

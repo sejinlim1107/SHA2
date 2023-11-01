@@ -25,14 +25,13 @@ def quantum_and(qc, a, b, c, ancilla):
     qc.h(c)
     qc.s(c)
 
-def quantum_and_dag(qc, a, b, c):#, classic):
+def quantum_and_dag(qc, a, b, c, classic):
     qc.h(b)
     qc.h(c)
-    #qc.measure(c,classic)
-    #if(classic):
-    qc.cx(a,b)
-    qc.x(c)
-
+    qc.measure(c,classic)
+    if(classic):
+        qc.cx(a,b)
+        qc.x(c)
     qc.h(b)
 
 n = 32
@@ -49,12 +48,12 @@ and_idx = 0
 tmp_len = (n-1)-w(n-1)
 tmp_ancilla = QuantumRegister(tmp_len)
 tmp_idx = 0
-#classic = ClassicalRegister(length+tmp_len)
-qc = QuantumCircuit(a,b,ancilla1,ancilla2,and_ancilla,tmp_ancilla)#,classic)
+classic = ClassicalRegister(length+tmp_len)
+qc = QuantumCircuit(a,b,ancilla1,ancilla2,and_ancilla,tmp_ancilla,classic)
 
 # Init round
 for i in range(n-1):
-    quantum_and(qc,a[i], b[i], ancilla1[i], and_ancilla[and_idx]) # ancilla1[0] == Z[1]
+    qc.ccx(a[i], b[i], ancilla1[i])#, and_ancilla[and_idx]) # ancilla1[0] == Z[1]
     and_idx += 1
 for i in range(n):
     qc.cx(a[i], b[i])
@@ -69,10 +68,10 @@ for t in range(1, int(log2(n-1))):
     #print("t ========== ",t)
     for m in range(1, l(n-1, t)):
         if t == 1:  # B에 저장되어있는 애들로만 연산 가능
-            quantum_and(qc,b[2 * m], b[2 * m + 1], ancilla2[idx], and_ancilla[and_idx])
+            qc.ccx(b[2 * m], b[2 * m + 1], ancilla2[idx])#, and_ancilla[and_idx])
             #print(2*m,2*m+1,idx)
         else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
-            quantum_and(qc,ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1], ancilla2[idx], and_ancilla[and_idx])
+            qc.ccx(ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1], ancilla2[idx])#, and_ancilla[and_idx])
             #print(pre - 1 + 2 * m,pre - 1 + 2 * m + 1,idx)
         if m == 1:
             tmp = idx
@@ -88,16 +87,16 @@ for t in range(1, int(log2(n-1)) + 1):
     for m in range(l(n-1, t)):
         if t == 1:  # B에 저장되어있는 애들로만 연산 가능
             #toffoli_gate(ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], b[2 * m + 1], ancilla1[int(pow(2, t) * (m + 1)) - 1])
-            quantum_and(qc,ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], b[2 * m + 1], tmp_ancilla[tmp_idx], and_ancilla[and_idx])
+            qc.ccx(ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], b[2 * m + 1], tmp_ancilla[tmp_idx])#, and_ancilla[and_idx])
             qc.cx(tmp_ancilla[tmp_idx],ancilla1[int(pow(2, t) * (m + 1)) - 1])
-            quantum_and_dag(qc,ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], b[2 * m + 1], tmp_ancilla[tmp_idx])#, classic[tmp_idx])
+            qc.ccx(ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], b[2 * m + 1], tmp_ancilla[tmp_idx])#, classic[tmp_idx])
             #print(int(pow(2, t) * m + pow(2, t - 1)) - 1,2 * m + 1,int(pow(2, t) * (m + 1)) - 1)
         else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
             #print(int(pow(2, t) * m + pow(2, t - 1)) - 1,idx+2*m,int(pow(2, t) * (m + 1)) - 1)
             #toffoli_gate(ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], ancilla2[idx+2*m],ancilla1[int(pow(2, t) * (m + 1)) - 1])
-            quantum_and(qc,ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], ancilla2[idx+2*m],tmp_ancilla[tmp_idx], and_ancilla[and_idx])
+            qc.ccx(ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], ancilla2[idx+2*m],tmp_ancilla[tmp_idx])#, and_ancilla[and_idx])
             qc.cx(tmp_ancilla[tmp_idx], ancilla1[int(pow(2, t) * (m + 1)) - 1])
-            quantum_and_dag(qc,ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], ancilla2[idx+2*m],tmp_ancilla[tmp_idx])#, classic[tmp_idx])
+            qc.ccx(ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], ancilla2[idx+2*m],tmp_ancilla[tmp_idx])#, classic[tmp_idx])
         and_idx = (and_idx + 1) % and_len
         tmp_idx += 1
     if t != 1:
@@ -116,17 +115,17 @@ for t in range(int(log2(2 * (n-1) / 3)), 0, -1):
     for m in range(1, l(((n-1) - pow(2, t - 1)), t) + 1):
         if t == 1:  # B에 저장되어있는 애들로만 연산 가능
             #toffoli_gate(ancilla1[int(pow(2, t) * m) - 1], b[2 * m],ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1])
-            quantum_and(qc,ancilla1[int(pow(2, t) * m) - 1], b[2 * m],tmp_ancilla[tmp_idx], and_ancilla[and_idx])
+            qc.ccx(ancilla1[int(pow(2, t) * m) - 1], b[2 * m],tmp_ancilla[tmp_idx])#, and_ancilla[and_idx])
             qc.cx(tmp_ancilla[tmp_idx],ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1])
-            quantum_and_dag(qc,ancilla1[int(pow(2, t) * m) - 1], b[2 * m], tmp_ancilla[tmp_idx])#, classic[tmp_idx])
+            qc.ccx(ancilla1[int(pow(2, t) * m) - 1], b[2 * m], tmp_ancilla[tmp_idx])#, classic[tmp_idx])
             #print(int(pow(2, t) * m) - 1,2 * m,int(pow(2, t) * m + pow(2, t - 1)) - 1)
         else:
             if m==1:
                 iter += l(n-1, t - 1) - 1
                 pre = length - 1 - iter
-            quantum_and(qc,ancilla1[int(pow(2, t) * m) - 1],ancilla2[pre + 2 * m],tmp_ancilla[tmp_idx], and_ancilla[and_idx])
+            qc.ccx(ancilla1[int(pow(2, t) * m) - 1],ancilla2[pre + 2 * m],tmp_ancilla[tmp_idx])#, and_ancilla[and_idx])
             qc.cx(tmp_ancilla[tmp_idx], ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1])
-            quantum_and_dag(qc,ancilla1[int(pow(2, t) * m) - 1],ancilla2[pre + 2 * m],tmp_ancilla[tmp_idx])#, classic[tmp_idx])
+            qc.ccx(ancilla1[int(pow(2, t) * m) - 1],ancilla2[pre + 2 * m],tmp_ancilla[tmp_idx])#, classic[tmp_idx])
             #print(int(pow(2, t) * m) - 1,pre + 2 * m,int(pow(2, t) * m + pow(2, t - 1)) - 1)
 
         and_idx = (and_idx + 1) % and_len
@@ -142,7 +141,7 @@ and_idx = 0
 for t in reversed(range(1, int(log2(n-1)))):
     for m in range(1, l(n-1, t)):
         if t == 1:  # B에 저장되어있는 애들로만 연산 가능
-            quantum_and_dag(qc,b[2 * m], b[2 * m + 1], ancilla2[m - t])#, classic[tmp_idx])
+            qc.ccx(b[2 * m], b[2 * m + 1], ancilla2[m - t])#, classic[tmp_idx])
             #print(2*m, 2*m+1, m-t)
         else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
             if m == 1:
@@ -150,7 +149,7 @@ for t in reversed(range(1, int(log2(n-1)))):
                 pre = length - iter
                 iter2 += (l(n-1, t) - 1)
                 idx = length - iter2
-            quantum_and_dag(qc,ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1], ancilla2[idx-1+m])#, classic[tmp_idx])
+            qc.ccx(ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1], ancilla2[idx-1+m])#, classic[tmp_idx])
             #print(pre - 1 + 2 * m,pre - 1 + 2 * m + 1,idx-1+m)
         and_idx += 1
 
@@ -180,10 +179,10 @@ for t in range(1, int(log2(n-1))):
     for m in range(1, l(n-1, t)):
         if t == 1:  # B에 저장되어있는 애들로만 연산 가능
             #print(2 * m, 2 * m + 1, idx)
-            quantum_and(qc, b[2 * m], b[2 * m + 1], ancilla2[idx], and_ancilla[and_idx])
+            qc.ccx(b[2 * m], b[2 * m + 1], ancilla2[idx])#, and_ancilla[and_idx])
         else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
             #print(pre - 1 + 2 * m, pre - 1 + 2 * m + 1, idx)
-            quantum_and(qc, ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1], ancilla2[idx], and_ancilla[and_idx])
+            qc.ccx(ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1], ancilla2[idx])#, and_ancilla[and_idx])
         idx += 1
         and_idx += 1
 
@@ -197,15 +196,15 @@ for t in reversed(range(int(log2(2 * (n-1) / 3)), 0, -1)):
         if t == 1:  # B에 저장되어있는 애들로만 연산 가능
             #print(int(pow(2, t) * m) - 1, 2 * m, int(pow(2, t) * m + pow(2, t - 1)) - 1)
             #toffoli_gate(ancilla1[int(pow(2, t) * m) - 1], b[2 * m],ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1])
-            quantum_and(qc,ancilla1[int(pow(2, t) * m) - 1], b[2 * m],tmp_ancilla[tmp_idx], and_ancilla[and_idx])
+            qc.ccx(ancilla1[int(pow(2, t) * m) - 1], b[2 * m],tmp_ancilla[tmp_idx])#, and_ancilla[and_idx])
             qc.cx(tmp_ancilla[tmp_idx], ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1])
-            quantum_and_dag(qc,ancilla1[int(pow(2, t) * m) - 1], b[2 * m],tmp_ancilla[tmp_idx])#, classic[tmp_idx])
+            qc.ccx(ancilla1[int(pow(2, t) * m) - 1], b[2 * m],tmp_ancilla[tmp_idx])#, classic[tmp_idx])
         else:
             #print(int(pow(2, t) * m) - 1, idx - 1 + 2 * m, int(pow(2, t) * m + pow(2, t - 1)) - 1)
             #toffoli_gate(ancilla1[int(pow(2, t) * m) - 1],ancilla2[idx-1+ 2 * m], ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1])
-            quantum_and(qc,ancilla1[int(pow(2, t) * m) - 1],ancilla2[idx-1+ 2 * m],tmp_ancilla[tmp_idx], and_ancilla[and_idx])
+            qc.ccx(ancilla1[int(pow(2, t) * m) - 1],ancilla2[idx-1+ 2 * m],tmp_ancilla[tmp_idx])#, and_ancilla[and_idx])
             qc.cx(tmp_ancilla[tmp_idx],ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1])
-            quantum_and_dag(qc,ancilla1[int(pow(2, t) * m) - 1],ancilla2[idx-1+ 2 * m], tmp_ancilla[tmp_idx])#, classic[tmp_idx])
+            qc.ccx(ancilla1[int(pow(2, t) * m) - 1],ancilla2[idx-1+ 2 * m], tmp_ancilla[tmp_idx])#, classic[tmp_idx])
             if m == 1:
                 pre += l(n-1, t-1) -1
 
@@ -224,9 +223,9 @@ for t in reversed(range(1, int(log2(n-1)) + 1)):
         if t == 1:  # B에 저장되어있는 애들로만 연산 가능
             #print(int(pow(2, t) * m + pow(2, t - 1)) - 1,2 * m + 1,int(pow(2, t) * (m + 1)) - 1)
             #toffoli_gate(ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], b[2 * m + 1],ancilla1[int(pow(2, t) * (m + 1)) - 1])
-            quantum_and(qc,ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], b[2 * m + 1],tmp_ancilla[tmp_idx], and_ancilla[and_idx])
+            qc.ccx(ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], b[2 * m + 1],tmp_ancilla[tmp_idx])#, and_ancilla[and_idx])
             qc.cx(tmp_ancilla[tmp_idx],ancilla1[int(pow(2, t) * (m + 1)) - 1])
-            quantum_and_dag(qc,ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], b[2 * m + 1], tmp_ancilla[tmp_idx])#, classic[tmp_idx])
+            qc.ccx(ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], b[2 * m + 1], tmp_ancilla[tmp_idx])#, classic[tmp_idx])
 
         else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
             if m==0:
@@ -236,9 +235,9 @@ for t in reversed(range(1, int(log2(n-1)) + 1)):
 
             #print(int(pow(2, t) * m + pow(2, t - 1)) - 1, pre - 1 + 2 * m + 1, int(pow(2, t) * (m + 1)) - 1)
             #toffoli_gate(ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], ancilla2[pre - 1 + 2 * m + 1],ancilla1[int(pow(2, t) * (m + 1)) - 1])
-            quantum_and(qc,ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], ancilla2[pre - 1 + 2 * m + 1],tmp_ancilla[tmp_idx],and_ancilla[and_idx])
+            qc.ccx(ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], ancilla2[pre - 1 + 2 * m + 1],tmp_ancilla[tmp_idx])#,and_ancilla[and_idx])
             qc.cx(tmp_ancilla[tmp_idx], ancilla1[int(pow(2, t) * (m + 1)) - 1])
-            quantum_and_dag(qc,ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], ancilla2[pre - 1 + 2 * m + 1],tmp_ancilla[tmp_idx])#,classic[tmp_idx])
+            qc.ccx(ancilla1[int(pow(2, t) * m + pow(2, t - 1)) - 1], ancilla2[pre - 1 + 2 * m + 1],tmp_ancilla[tmp_idx])#,classic[tmp_idx])
         and_idx = (and_idx + 1) % and_len
         tmp_idx += 1
 
@@ -252,7 +251,7 @@ and_idx = 0
 for t in reversed(range(1, int(log2(n-1)))):
     for m in range(1, l(n-1, t)):
         if t == 1:  # B에 저장되어있는 애들로만 연산 가능
-            quantum_and_dag(qc,b[2 * m], b[2 * m + 1], ancilla2[m - t])#, classic[tmp_idx])
+            qc.ccx(b[2 * m], b[2 * m + 1], ancilla2[m - t])#, classic[tmp_idx])
             #print(2*m,2*m+1,m-t)
         else:  # t가 1보다 클 때는 ancilla에 저장된 애들도 이용해야함
             if m == 1:
@@ -261,7 +260,7 @@ for t in reversed(range(1, int(log2(n-1)))):
                 iter2 += l(n-1, idx_t) - 1
                 idx = length - iter2
                 idx_t -= 1
-            quantum_and_dag(qc,ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1], ancilla2[idx-1+m])#,classic[tmp_idx])
+            qc.ccx(ancilla2[pre - 1 + 2 * m], ancilla2[pre - 1 + 2 * m + 1], ancilla2[idx-1+m])#,classic[tmp_idx])
             #print(pre - 1 + 2 * m,pre - 1 + 2 * m + 1,idx-1+m)
         and_idx += 1
 
@@ -270,11 +269,11 @@ for i in range(1,n-1):
     qc.cx(a[i], b[i])
 and_idx = 0
 for i in range(n-1):
-    quantum_and_dag(qc,a[i], b[i], ancilla1[i])#, classic[tmp_idx])
+    qc.ccx(a[i], b[i], ancilla1[i])#, classic[tmp_idx])
 for i in range(n-1):
     qc.x(b[i])
 
-t_depth = qc.depth(lambda gate: gate[0].name in ['t', 'tdg'])
-print("t depth:", t_depth)
+toffoli_depth = qc.depth(lambda gate: gate[0].name in ['ccx'])
+print("toffli depth:", toffoli_depth)
 print("full depth : ", qc.depth())
 print("qubit : ", qc.width())

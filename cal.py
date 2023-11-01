@@ -8,6 +8,9 @@ def l(n, t):
     return int(mt.floor(n / (mt.pow(2, t))))
 
 n = 32
+
+
+print((n-1)-w(n-1))
 cnt = 0
 
 for t in range(1, int(mt.log2(n - 1))):

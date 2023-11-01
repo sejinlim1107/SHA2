@@ -1,10 +1,12 @@
 import cirq
 import cirqOnqiskit
-import inDraper as inDraper
-
+import modInDraper as inDraper
 from base_tree_adder import BaseTreeAdder
-
-
+from projectq import MainEngine
+from projectq.ops import H, CNOT, Measure, Toffoli, X, All, Swap, Z, T, Tdag, S, Tdagger, Sdag
+from projectq.backends import CircuitDrawer, ResourceCounter, CommandPrinter, ClassicalSimulator
+from projectq.meta import Loop, Compute, Uncompute, Control, Dagger
+from math import floor, ceil, log2
 
 class WallaceTreeAdder(BaseTreeAdder):
     def apply_adders_and_handle_carry(self, w, circuit):
@@ -22,16 +24,17 @@ class WallaceTreeAdder(BaseTreeAdder):
                     a = w[n - 1].pop(0)
                     b = w[n - 1].pop(0)
                     c = w[n - 1].pop(0)
-                    carry = cirq.NamedQubit("csa_carry" + str(num))
-                    num += 1
-                    stack.append([a, b, c, carry])
-                    circuit.append(self.QFA(a, b, c, carry))
+                    # carry = cirq.NamedQubit("csa_carry" + str(num))
+                    # num += 1
+                    # stack.append([a, b, c, carry])
+                    stack.append([a, b, c, 0, 0, 0])
+                    circuit.append(self.modQFA(a, b, c))
                     # self.countQFA +=1
                     w_tmp.append(c)
-                    w_tmp2.append(carry)
+                    #w_tmp2.append(carry)
 
                 w[n - 1].extend(w_tmp)
-                w.append(w_tmp2)
+                #w.append(w_tmp2)
 
             for i in reversed(range(0, n - 1)):
                 w_tmp = []
@@ -60,33 +63,36 @@ class WallaceTreeAdder(BaseTreeAdder):
             n = len(w)
             t = 0
             w_tmp = []
-            w_tmp2 = []
+            #w_tmp2 = []
 
             if (len(w[n - 1]) > 2):
                 while (len(w[n - 1]) > 2):
                     a = w[n - 1].pop(0)
                     b = w[n - 1].pop(0)
                     c = w[n - 1].pop(0)
-                    carry = cirq.NamedQubit("csa_carry" + str(num))
-                    num += 1
-                    stack.append([a, b, c, carry])
-                    circuit.append(self.QFA(a, b, c, carry))
+                    #carry = cirq.NamedQubit("csa_carry" + str(num))
+                    #num += 1
+                    #stack.append([a, b, c, carry])
+                    stack.append([a, b, c, 0, 0, 0])
+                    #circuit.append(self.QFA(a, b, c, carry))
+                    circuit.append(self.modQFA(a, b, c))
                     # self.countQFA += 1
                     w_tmp.append(c)
-                    w_tmp2.append(carry)
-                if len(w[i]) == 2:
+                    #w_tmp2.append(carry)
+                if len(w[i]) == 2: # 최상위 비트
                     a = w[i].pop(0)
                     b = w[i].pop(0)
-                    carry = cirq.NamedQubit("csa_carry" + str(num))
+                    # carry = cirq.NamedQubit("csa_carry" + str(num))
                     num += 1
-                    stack.append([a, b, carry])
-                    circuit.append(self.QHA(a, b, carry))
+                    #stack.append([a, b, carry])
+                    stack.append([a, b, 0, 0, 0])
+                    circuit.append(cirq.CNOT(a, b)) # modQHA
                     # self.countQHA += 1
                     w_tmp.append(b)
-                    w_tmp2.append(carry)
+                    #w_tmp2.append(carry)
 
                 w[n - 1].extend(w_tmp)
-                w.append(w_tmp2)
+                #w.append(w_tmp2)
 
             for i in reversed(range(0, n - 1)):
                 w_tmp = []
@@ -136,6 +142,7 @@ class WallaceTreeAdder(BaseTreeAdder):
         rca_A = []
         rca_B = []
         R = []
+        print(w)
         while (len(w)):
             if len(w[0]) == 1:
                 if (len(w) == 1):
@@ -170,6 +177,10 @@ class WallaceTreeAdder(BaseTreeAdder):
                         circuit.append(self.QHA_R(tmp[0], tmp[1], tmp[2]))
                     if (len(tmp) == 4):
                         circuit.append(self.QFA_R(tmp[0], tmp[1], tmp[2], tmp[3]))
+                    if (len(tmp) == 5):
+                        circuit.append(cirq.CNOT(tmp[0], tmp[1]))
+                    if (len(tmp) == 6):
+                        circuit.append(self.modQFA_R(tmp[0], tmp[1], tmp[2]))
 
                 elif (len(list(set(list1) & set(tmp2))) == 1):
                     if (len(list(set(list1) & set([tmp[-1]]))) == 1):
@@ -183,6 +194,10 @@ class WallaceTreeAdder(BaseTreeAdder):
                     circuit.append(self.QHA_R(tmp[0], tmp[1], tmp[2]))
                 if (len(tmp) == 4):
                     circuit.append(self.QFA_R(tmp[0], tmp[1], tmp[2], tmp[3]))
+                if (len(tmp) == 5):
+                    circuit.append(cirq.CNOT(tmp[0], tmp[1]))
+                if (len(tmp) == 6):
+                    circuit.append(self.modQFA_R(tmp[0], tmp[1], tmp[2]))
 
         return circuit
 
@@ -198,7 +213,7 @@ class WallaceTreeAdder(BaseTreeAdder):
         return circuit, R + result
 
 if __name__ == '__main__':
-    n = 4
+    n = 5
 
     A = [cirq.NamedQubit("IN0_" + str(i)) for i in range(n)]
     B = [cirq.NamedQubit("IN1_" + str(i)) for i in range(n)]
@@ -214,26 +229,20 @@ if __name__ == '__main__':
     circuit.append(cirq.X(A[1]))
     circuit.append(cirq.X(A[2]))
     circuit.append(cirq.X(B[0]))
-    circuit.append(cirq.X(B[1]))
-    circuit.append(cirq.X(B[2]))
-    circuit.append(cirq.X(C[0]))
-    circuit.append(cirq.X(C[1]))
-    circuit.append(cirq.X(C[2]))
-    circuit.append(cirq.X(D[0]))
-    circuit.append(cirq.X(D[1]))
-    circuit.append(cirq.X(D[2]))
-    circuit.append(cirq.X(E[0]))
-    circuit.append(cirq.X(E[1]))
-    circuit.append(cirq.X(E[2]))
+    circuit.append(cirq.X(B[4]))
+    circuit.append(cirq.X(C[3]))
+    circuit.append(cirq.X(C[4]))
+    # circuit.append(cirq.X(D[0]))
+    # circuit.append(cirq.X(D[1]))
+    # circuit.append(cirq.X(D[2]))
+    # circuit.append(cirq.X(E[0]))
+    # circuit.append(cirq.X(E[1]))
+    # circuit.append(cirq.X(E[2]))
 
     inputs = [A, B, C]
     is_metric_mode = True
-    # adder, toffoli_type = takahashi.InplaceAdder(True, 'ZERO_ANCILLA_TDEPTH_3'), 'logicalAND'
     adder, toffoli_type = inDraper.InplaceAdder(False), 'TOFFOLI'
     # adder, toffoli_type = outDraper.InplaceAdder(True, 'ZERO_ANCILLA_TDEPTH_3'), 'logicalAND'
-
-    # adder, toffoli_type = gidney.InplaceAdder(is_metric_mode=True), 'logicalAND'
-    # adder, toffoli_type = inDraper_logicalAND.InplaceAdder(is_metric_mode=True), 'logicalAND'
     # adder, toffoli_type = outDraper_logicalAND.InplaceAdder(is_metric_mode=True), 'logicalAND'
 
     k = WallaceTreeAdder(n, inputs, adder, is_metric_mode, toffoli_type)

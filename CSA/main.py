@@ -25,7 +25,7 @@ if __name__ == '__main__':
         is_metric_mode = True
 
         #adder, toffoli_type = takahashi.InplaceAdder(True,'Toffoli'), 'Toffoli'
-        adder, toffoli_type = inDraper.InplaceAdder(True,'Toffoli'), 'Toffoli'
+        adder, toffoli_type = inDraper.InplaceAdder(True, 'Toffoli'), 'Toffoli'
         #adder, toffoli_type = outDraper.OutplaceAdder(True, 'Toffoli'), 'Toffoli'
         #adder, toffoli_type = ring.OutplaceAdder(True, 'Toffoli'), 'Toffoli'
 
